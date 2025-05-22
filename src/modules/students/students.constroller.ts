@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { StudentsService } from './students.service';
 import { Student } from './schemas/students.schema';
 
@@ -9,6 +9,11 @@ export class StudentsController {
   @Get()
   async getStudents(): Promise<Student[]> {
     return await this.studentsService.findAll();
+  }
+
+  @Get(':sbd')
+  async getStudentBySBD(@Param() params: { sbd: string }) {
+    return await this.studentsService.findStudentBySBD(params.sbd);
   }
 
   @Post()
