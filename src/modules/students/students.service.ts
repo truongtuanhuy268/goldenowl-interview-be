@@ -2,6 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Model } from 'mongoose';
 import { Student } from './schemas/students.schema';
 import { InjectModel } from '@nestjs/mongoose';
+import { Report } from '../reports/types/reports.type';
+import { TopStudent } from '../reports/types/top-student.type';
 
 @Injectable()
 export class StudentsService {
@@ -9,9 +11,9 @@ export class StudentsService {
     @InjectModel(Student.name) private readonly studentModel: Model<Student>,
   ) {}
 
-  private reports: any[] = [];
+  private reports: Report[] = [];
 
-  findAll() {
+  findAll(): Promise<Student[]> {
     return this.studentModel.find().exec();
   }
   async createStudent(student: Student): Promise<Student> {
@@ -19,7 +21,10 @@ export class StudentsService {
     return newStudent.save();
   }
 
-  async findStudentBySBD(sbd: string) {
+  async findStudentBySBD(sbd: string): Promise<Student> {
+    if (!sbd) {
+      throw new NotFoundException('SBD is required');
+    }
     const student = await this.studentModel.findOne({ sbd }).exec();
     if (!student) {
       throw new NotFoundException(`Student with SBD ${sbd} not found`);
@@ -27,7 +32,7 @@ export class StudentsService {
     return student;
   }
 
-  async generateReport() {
+  async generateReport(): Promise<Report[]> {
     if (this.reports.length > 0) return this.reports;
 
     const subjects = [
@@ -111,16 +116,16 @@ export class StudentsService {
     //   });
     // }
 
-    const formatted: any[] = [];
+    const formatted: Report[] = [];
 
     for (const subject of subjects) {
       const levelData = result[0][subject];
       const levels = ['>=8', '6-8', '4-6', '<4'];
 
-      const normalized: any = { subject };
+      const normalized: Report = { subject };
 
       for (const level of levels) {
-        const count = levelData.find((l: any) => l._id === level)?.count || 0;
+        const count = levelData.find((l) => l._id === level)?.count || 0;
         const key = level === '>=8' ? '>8' : level;
         normalized[key] = count;
       }
@@ -131,7 +136,7 @@ export class StudentsService {
     return formatted;
   }
 
-  async findTop10Students(): Promise<any[]> {
+  async findTop10Students(): Promise<TopStudent[]> {
     return await this.studentModel.aggregate([
       {
         $addFields: {

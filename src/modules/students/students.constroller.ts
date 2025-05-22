@@ -12,7 +12,7 @@ export class StudentsController {
   }
 
   @Get(':sbd')
-  async getStudentBySBD(@Param() params: { sbd: string }) {
+  async getStudentBySBD(@Param() params: { sbd: string }): Promise<Student> {
     return await this.studentsService.findStudentBySBD(params.sbd);
   }
 
