@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Model } from 'mongoose';
 import { Student } from './schemas/students.schema';
 import { InjectModel } from '@nestjs/mongoose';
@@ -8,6 +8,9 @@ export class StudentsService {
   constructor(
     @InjectModel(Student.name) private readonly studentModel: Model<Student>,
   ) {}
+
+  private reports: any[] = [];
+
   findAll() {
     return this.studentModel.find().exec();
   }
@@ -17,15 +20,21 @@ export class StudentsService {
   }
 
   async findStudentBySBD(sbd: string) {
-    return await this.studentModel.findOne({ sbd }).exec();
+    const student = await this.studentModel.findOne({ sbd }).exec();
+    if (!student) {
+      throw new NotFoundException(`Student with SBD ${sbd} not found`);
+    }
+    return student;
   }
 
   async generateReport() {
+    if (this.reports.length > 0) return this.reports;
+
     const subjects = [
       'toan',
       'ngu_van',
       'ngoai_ngu',
-      'vat_ly',
+      'vat_li',
       'hoa_hoc',
       'sinh_hoc',
       'lich_su',
@@ -86,21 +95,71 @@ export class StudentsService {
       },
     ]);
 
+    // const formatted: any[] = [];
+    // for (const subject of subjects) {
+    //   const levelData = result[0][subject];
+    //   const levels = ['>=8', '6-8', '4-6', '<4'];
+
+    //   const normalized = levels.map((level) => ({
+    //     level,
+    //     count: levelData.find((l) => l._id === level)?.count || 0,
+    //   }));
+
+    //   formatted.push({
+    //     subject,
+    //     levels: normalized,
+    //   });
+    // }
+
     const formatted: any[] = [];
+
     for (const subject of subjects) {
       const levelData = result[0][subject];
       const levels = ['>=8', '6-8', '4-6', '<4'];
 
-      const normalized = levels.map((level) => ({
-        level,
-        count: levelData.find((l) => l._id === level)?.count || 0,
-      }));
+      const normalized: any = { subject };
 
-      formatted.push({
-        subject,
-        levels: normalized,
-      });
+      for (const level of levels) {
+        const count = levelData.find((l: any) => l._id === level)?.count || 0;
+        const key = level === '>=8' ? '>8' : level;
+        normalized[key] = count;
+      }
+
+      formatted.push(normalized);
     }
+    this.reports = formatted;
     return formatted;
+  }
+
+  async findTop10Students(): Promise<any[]> {
+    return await this.studentModel.aggregate([
+      {
+        $addFields: {
+          tong_diem_khoi_a: {
+            $add: [
+              { $ifNull: ['$toan', 0] },
+              { $ifNull: ['$vat_li', 0] },
+              { $ifNull: ['$hoa_hoc', 0] },
+            ],
+          },
+        },
+      },
+      {
+        $sort: { tong_diem_khoi_a: -1 },
+      },
+      {
+        $limit: 10,
+      },
+      {
+        $project: {
+          _id: 0,
+          sbd: 1,
+          toan: 1,
+          vat_li: 1,
+          hoa_hoc: 1,
+          tong_diem_khoi_a: 1,
+        },
+      },
+    ]);
   }
 }

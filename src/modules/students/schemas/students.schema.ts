@@ -15,7 +15,7 @@ export class Student {
   ngoai_ngu?: number;
 
   @Prop({ required: false })
-  vat_ly?: number;
+  vat_li?: number;
 
   @Prop({ required: false })
   hoa_hoc?: number;
